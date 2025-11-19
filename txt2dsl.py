@@ -32,26 +32,21 @@ for line in lines:
     elif stripped.startswith("##"):
         continue
     else:
-        content_lines.append(line.rstrip("\n"))
+        # ========= إزالة \n المكتوبة حرفياً =========
+        clean_line = line.replace("\\n", "")
+        content_lines.append(clean_line.rstrip("\n"))
+        # ============================================
 
 if not dict_name:
     dict_name = os.path.splitext(os.path.basename(input_file))[0]
 
 # ========== Fix only phonetic brackets ==========
 def fix_phonetic_brackets(text):
-    """
-    استبدال الأقواس فقط في النصوص الصوتية
-    """
-    # نمط للتعرف على النصوص الصوتية (مثل ['word] أو [ˈword])
     phonetic_pattern = r"\[['ˈˌ].*?\]"
-    
     def replace_brackets(match):
         phonetic_text = match.group(0)
-        # استبدال [ بـ ( و ] بـ ) فقط في النص الصوتي
         phonetic_text = phonetic_text.replace('[', '(').replace(']', ')')
         return phonetic_text
-    
-    # استبدال فقط النصوص الصوتية
     text = re.sub(phonetic_pattern, replace_brackets, text)
     return text
 
@@ -108,7 +103,7 @@ class LingvoHTMLParser(HTMLParser):
                         self.emit("[/c]")
                     break
         
-        elif tag in ["b"]:
+        elif tag == "b":
             self.emit("[/b]")
 
         elif tag == "i":
@@ -143,6 +138,12 @@ with io.open(output_file, "w", encoding="utf-16") as outf:
 
         parts = line.split("\t", 1)
         head = parts[0].strip()
+
+        # ========== إذا كان head يحتوي | ==========
+        if "|" in head:
+            head = "\n".join(h.strip() for h in head.split("|") if h.strip())
+        # ===========================================
+
         html = parts[1] if len(parts) > 1 else ""
 
         outf.write(head + "\n")
@@ -154,9 +155,11 @@ with io.open(output_file, "w", encoding="utf-16") as outf:
 
         text = parser.output
         
-        # استبدال الأقواس فقط في النصوص الصوتية
         text = fix_phonetic_brackets(text)
-        
+
+        # استبدال سطرين متتاليين ناتجين عن <br><br>
+        text = re.sub(r"(?:\n\t\s*){2,}", "[m1]\\ [/m]", text)
+
         outf.write(text)
         outf.write("[/m]\n")
 
